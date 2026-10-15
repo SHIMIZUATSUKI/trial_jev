@@ -1,0 +1,79 @@
+{
+  "summary": [
+    {
+      "model": "tfidf",
+      "accuracy": 0.55,
+      "macro_f1": 0.5,
+      "mean_ms": 1.72,
+      "p95_ms": 2.6,
+      "max_ms": 3.47,
+      "total_s": 0.034,
+      "fit_mean_ms": 49.49
+    }
+  ],
+  "details": {
+    "tfidf": {
+      "preds_last_round": [
+        "high",
+        "high",
+        "high",
+        "high",
+        "high",
+        "medium",
+        "high",
+        "medium",
+        "medium",
+        "low",
+        "high",
+        "high",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "low",
+        "medium",
+        "high"
+      ],
+      "confusion(rows=true high/med/low, cols=pred)": [
+        [
+          6,
+          1,
+          0
+        ],
+        [
+          2,
+          4,
+          1
+        ],
+        [
+          1,
+          4,
+          1
+        ]
+      ],
+      "latency_ms_per_mail": [
+        3.47,
+        1.74,
+        1.4,
+        2.6,
+        2.16,
+        1.5,
+        1.97,
+        1.25,
+        1.83,
+        2.07,
+        1.57,
+        1.21,
+        1.3,
+        1.9,
+        1.26,
+        1.18,
+        1.47,
+        1.38,
+        1.17,
+        2.01
+      ]
+    }
+  }
+}

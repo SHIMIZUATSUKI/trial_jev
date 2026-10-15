@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jevの能力を測定</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f5f2;
+  --surface-1: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #77756f;
+  --border: #e3e1db;
+  --grid: #ecebe6;
+  --accent: #2a78d6;
+  --code-bg: #f0efec;
+  --s-jev: #2a78d6;
+  --s-decisions: #eb6834;
+  --s-gpt: #1baf7a;
+  --s-tfidf: #eda100;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211;
+    --surface-1: #1a1a19;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #9a988f;
+    --border: #2f2f2c;
+    --grid: #2a2a27;
+    --accent: #3987e5;
+    --code-bg: #242422;
+    --s-jev: #3987e5;
+    --s-decisions: #d95926;
+    --s-gpt: #199e70;
+    --s-tfidf: #c98500;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211;
+  --surface-1: #1a1a19;
+  --text-primary: #f0efec;
+  --text-secondary: #c3c2b7;
+  --text-muted: #9a988f;
+  --border: #2f2f2c;
+  --grid: #2a2a27;
+  --accent: #3987e5;
+  --code-bg: #242422;
+  --s-jev: #3987e5;
+  --s-decisions: #d95926;
+  --s-gpt: #199e70;
+  --s-tfidf: #c98500;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+  font-size: 15px;
+  line-height: 1.8;
+}
+main { max-width: 880px; margin: 0 auto; padding: 40px 16px 80px; }
+header.doc { margin-bottom: 28px; }
+header.doc .eyebrow { color: var(--text-muted); font-size: 13px; letter-spacing: .04em; }
+h1 { font-size: 30px; line-height: 1.3; margin: 4px 0 12px; }
+header.doc ul { list-style: none; padding: 0; margin: 0; color: var(--text-secondary); font-size: 14px; }
+h2 { font-size: 21px; margin: 48px 0 12px; padding-top: 20px; border-top: 1px solid var(--border); }
+h3 { font-size: 17px; margin: 32px 0 10px; }
+p, li { color: var(--text-primary); }
+strong { font-weight: 700; }
+hr { display: none; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { background: var(--code-bg); padding: 14px 16px; border-radius: 8px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+.table-wrap { overflow-x: auto; margin: 12px 0 18px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-1); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--text-secondary); font-weight: 600; background: var(--code-bg); white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 8px 0 8px; }
+.kpi { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.kpi-label { color: var(--text-secondary); font-size: 13px; }
+.kpi-value { font-size: 34px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.kpi-value span { font-size: 16px; font-weight: 600; color: var(--text-secondary); margin-left: 2px; }
+.kpi-note { color: var(--text-muted); font-size: 12.5px; line-height: 1.5; margin-top: 4px; }
+figure.chart { margin: 12px 0 20px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 16px 16px 8px; position: relative; }
+figcaption { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.chart-title { font-weight: 700; font-size: 15px; }
+.chart-sub { color: var(--text-muted); font-size: 12.5px; line-height: 1.5; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+svg { display: block; width: 100%; overflow: visible; }
+svg text { font-family: inherit; }
+svg text.halo { paint-order: stroke; stroke: var(--surface-1); stroke-width: 4px; stroke-linejoin: round; }
+.tip { position: absolute; pointer-events: none; background: var(--text-primary); color: var(--surface-1); font-size: 12.5px; line-height: 1.5; padding: 6px 10px; border-radius: 6px; max-width: 260px; opacity: 0; transition: opacity .08s; z-index: 2; }
+.tip b { font-weight: 700; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 0 0 24px; position: sticky; top: 0; background: var(--bg); z-index: 3; }
+.tab { appearance: none; border: none; background: none; font: inherit; font-size: 14.5px; color: var(--text-secondary); padding: 10px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab[aria-selected="true"] { color: var(--text-primary); font-weight: 700; border-bottom-color: var(--accent); }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 0 0 10px; }
+.filters input[type=search], .filters select { font: inherit; font-size: 14px; color: var(--text-primary); background: var(--surface-1); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
+.filters input[type=search] { flex: 1 1 220px; min-width: 0; }
+.filters label { font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+.count { font-size: 13px; color: var(--text-muted); margin: 0 0 8px; }
+.data-intro { color: var(--text-secondary); font-size: 14px; margin: 0 0 16px; }
+table.data td, table.data th { white-space: nowrap; padding: 8px 9px; }
+table.data th { line-height: 1.35; vertical-align: bottom; }
+table.data td.subj { white-space: normal; min-width: 200px; }
+table.data .num { text-align: right; }
+.subj-btn { appearance: none; border: none; background: none; padding: 0; font: inherit; color: var(--text-primary); text-align: left; cursor: pointer; line-height: 1.6; }
+.subj-btn::before { content: "▸"; display: inline-block; width: 1em; color: var(--text-muted); transition: transform .1s; }
+.subj-btn[aria-expanded="true"]::before { transform: rotate(90deg); }
+.subj-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+tr.body-row td { white-space: normal; background: var(--code-bg); color: var(--text-secondary); font-size: 13.5px; line-height: 1.8; padding: 10px 16px 12px 40px; }
+.badge { display: inline-block; font-size: 12px; line-height: 1.6; padding: 0 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-secondary); }
+.ok { color: var(--text-muted); }
+.ng { color: var(--text-primary); font-weight: 700; }
+.ng::before { content: "✗ "; color: #d03b3b; }
+@media (max-width: 640px) {
+  h1 { font-size: 24px; }
+  .kpis { grid-template-columns: 1fr; }
+  .kpi-value { font-size: 28px; }
+}
+@media print {
+  body { background: #fff; }
+  figure.chart, .kpi, .table-wrap { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<main>
+<header class="doc">
+  <div class="eyebrow">メール緊急度分類ベンチマーク レポート</div>
+  <h1>jevの能力を測定</h1>
+  <ul><li>実施日: 2026-10-14</li><li>対象: TypeSafe Jev（<code>jev-latest</code>）</li><li>比較対象: OpenAI Decisions API（<code>gpt-6-luna</code>）、OpenAI Chat Completions（<code>gpt-4.1-mini</code>）、TF-IDF + ロジスティック回帰</li></ul>
+</header>
+<nav class="tabs" role="tablist" aria-label="表示の切り替え">
+  <button class="tab" role="tab" id="tabbtn-report" aria-controls="tab-report" aria-selected="true">レポート</button>
+  <button class="tab" role="tab" id="tabbtn-data" aria-controls="tab-data" aria-selected="false" tabindex="-1">データ（例文100件）</button>
+</nav>
+<section id="tab-report" role="tabpanel" aria-labelledby="tabbtn-report">
+
+<section class="kpis" aria-label="主な結果">
+  <div class="kpi"><div class="kpi-label">jev の正解率</div><div class="kpi-value">100<span>%</span></div><div class="kpi-note">100件中100件（gpt 95%、decisions 99%）</div></div>
+  <div class="kpi"><div class="kpi-label">jev の処理時間（中央値）</div><div class="kpi-value">180<span>ms</span></div><div class="kpi-note">decisions 237ms ／ gpt 686ms</div></div>
+  <div class="kpi"><div class="kpi-label">decisions より速かった件数</div><div class="kpi-value">94<span>/100</span></div><div class="kpi-note">ばらつき（標準偏差）は 20ms と最小</div></div>
+</section>
+
+<h2>1. 検証概要</h2>
+<h3>目的</h3>
+<p>ビジネスメールの <strong>緊急度（high / medium / low）分類</strong> というタスクで、TypeSafe Jev の <strong>精度</strong> と <strong>応答速度</strong> を、同じ種類の分類専用 API（OpenAI Decisions API）、汎用 LLM（GPT）、古典的なベースライン（TF-IDF）と同じ条件で比較する。</p>
+<h3>緊急度の定義（全モデル共通）</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ラベル</th>
+<th>定義</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>high</td>
+<td>今日〜数時間以内の対応が必要</td>
+</tr>
+<tr>
+<td>medium</td>
+<td>数日以内の対応が必要</td>
+</tr>
+<tr>
+<td>low</td>
+<td>対応期限がなく、情報共有が中心</td>
+</tr>
+</tbody>
+</table></div>
+<h3>データセット</h3>
+<ul>
+<li>日本語のビジネスメール <strong>100件</strong>（件名と本文。95〜220字、平均138字）</li>
+<li>緊急度ラベル: high 33 / medium 34 / low 33</li>
+<li>判断の難しさ（難易度）を、緊急度とは別の軸として3段階で付与した</li>
+</ul>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>難易度</th>
+<th>件数</th>
+<th>基準</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>high</td>
+<td>20</td>
+<td>件名や言葉が正解と逆を指す／重要な情報が末尾に埋もれている／控えめな書き方から状況を推し量る必要がある</td>
+<td>「お手すきの際にご確認ください」（SSL証明書が今夜切れる → 緊急度high）、「【緊急】件名のメール訓練について」（→ 緊急度low）</td>
+</tr>
+<tr>
+<td>medium</td>
+<td>33</td>
+<td>緊急ワードはないが、期限や影響を読めば判断できる</td>
+<td>「月末の支払いについて」（銀行の締めが15時 → 緊急度high）</td>
+</tr>
+<tr>
+<td>low</td>
+<td>47</td>
+<td>「至急」「本日17時」などの手がかりが、正解とそのまま一致する</td>
+<td>「【至急】ECサイトの在庫表示がすべて0になっています」</td>
+</tr>
+</tbody>
+</table></div>
+<h3>比較したモデル</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>モデル</th>
+<th>方式</th>
+<th>出力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>jev</strong></td>
+<td>TypeSafe Jev <code>system_one</code>。high/medium/low の Choice 質問</td>
+<td>選んだ答え・確信度・各選択肢の確率</td>
+</tr>
+<tr>
+<td>decisions</td>
+<td>OpenAI Decisions API。high/medium/low の choice 質問</td>
+<td>選んだ答え・確信度・各選択肢の確率</td>
+</tr>
+<tr>
+<td>gpt</td>
+<td>OpenAI Chat Completions（temperature=0、JSON モード）</td>
+<td><code>{"urgency": "..."}</code></td>
+</tr>
+<tr>
+<td>tfidf</td>
+<td>文字の1〜3文字の並びを TF-IDF で数値化し、ロジスティック回帰で分類。Leave-one-out で評価</td>
+<td>ラベル</td>
+</tr>
+</tbody>
+</table></div>
+<h3>測定条件</h3>
+<ul>
+<li>全モデルで同じ100件を、1件ずつ分類した。</li>
+<li>API を使う3モデルは、クライアントを1つ作って使い回し、計測しない空打ちを1回してから計測した（接続準備の時間を除外して条件をそろえるため）。</li>
+<li>時間は <code>time.perf_counter()</code> で、リクエストを送ってから答えが返るまでを測った。</li>
+<li><code>--repeat 1</code>（各メール1回ずつ）</li>
+<li>評価指標: 正解率、Macro-F1、難易度別の正解率、処理時間（平均・中央値・最小・p95・最大・標準偏差）</li>
+</ul>
+<hr />
+<h2>2. 結果</h2>
+<h3>2.1 精度</h3>
+<figure class="chart" id="acc-figure">
+  <figcaption>
+    <span class="chart-title">難易度別の正解率</span>
+    <span class="chart-sub">点にカーソルを合わせると値を表示。横軸は 0.7〜1.0 を拡大している</span>
+  </figcaption>
+  <div class="legend" aria-hidden="true"></div>
+  <svg id="acc-chart" role="img" aria-label="難易度別の正解率のドットプロット。jevは全難易度で1.00、decisionsは1.00/0.97/1.00、gptは0.95/0.94/0.96、tfidfは0.85/0.79/0.92"></svg>
+</figure>
+
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>モデル</th>
+<th>正解率</th>
+<th>Macro-F1</th>
+<th>難易度high (20)</th>
+<th>難易度medium (33)</th>
+<th>難易度low (47)</th>
+<th>誤分類</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>jev</strong></td>
+<td><strong>1.00</strong></td>
+<td><strong>1.00</strong></td>
+<td><strong>1.00</strong></td>
+<td><strong>1.00</strong></td>
+<td><strong>1.00</strong></td>
+<td><strong>0件</strong></td>
+</tr>
+<tr>
+<td>decisions</td>
+<td>0.99</td>
+<td>0.99</td>
+<td>1.00</td>
+<td>0.97</td>
+<td>1.00</td>
+<td>1件</td>
+</tr>
+<tr>
+<td>gpt</td>
+<td>0.95</td>
+<td>0.95</td>
+<td>0.95</td>
+<td>0.94</td>
+<td>0.96</td>
+<td>5件</td>
+</tr>
+<tr>
+<td>tfidf</td>
+<td>0.86</td>
+<td>0.86</td>
+<td>0.85</td>
+<td>0.79</td>
+<td>0.92</td>
+<td>14件</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>混同行列</strong>（行 = 正解 high/medium/low、列 = 予測 high/medium/low）</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>jev</th>
+<th>decisions</th>
+<th>gpt</th>
+<th>tfidf</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>正解 high</td>
+<td>33 / 0 / 0</td>
+<td>33 / 0 / 0</td>
+<td>33 / 0 / 0</td>
+<td>30 / 3 / 0</td>
+</tr>
+<tr>
+<td>正解 medium</td>
+<td>0 / 34 / 0</td>
+<td>1 / 33 / 0</td>
+<td>4 / 30 / 0</td>
+<td>4 / 28 / 2</td>
+</tr>
+<tr>
+<td>正解 low</td>
+<td>0 / 0 / 33</td>
+<td>0 / 0 / 33</td>
+<td>0 / 1 / 32</td>
+<td>3 / 2 / 28</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>API の3モデルの誤分類</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>件名</th>
+<th>正解</th>
+<th>gpt</th>
+<th>decisions</th>
+<th>jev</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>052</td>
+<td>面接評価シート提出のお願い（期限: 明日の終業時）</td>
+<td>medium</td>
+<td>high ✗</td>
+<td>high ✗</td>
+<td>medium ✓</td>
+</tr>
+<tr>
+<td>053</td>
+<td>顧客からの機能要望への回答について（期限: 今週金曜）</td>
+<td>medium</td>
+<td>high ✗</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>054</td>
+<td>次期予算案の数値確認のお願い（期限: 来週月曜正午）</td>
+<td>medium</td>
+<td>high ✗</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>068</td>
+<td>ご確認ください（発注数量の食い違い、納品は来週金曜）</td>
+<td>medium</td>
+<td>high ✗</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>094</td>
+<td>本日18時から全社懇親会です（任意参加）</td>
+<td>low</td>
+<td>medium ✗</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>有意差の検定</strong>（McNemar の正確検定。同じメールで片方だけが正解した件数を比べる）</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>比較</th>
+<th>片方だけが正解した件数</th>
+<th>p 値</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>jev と gpt</td>
+<td>jev だけ 5 : gpt だけ 0</td>
+<td>0.062</td>
+</tr>
+<tr>
+<td>decisions と gpt</td>
+<td>4 : 0</td>
+<td>0.125</td>
+</tr>
+<tr>
+<td>jev と decisions</td>
+<td>1 : 0</td>
+<td>1.000</td>
+</tr>
+</tbody>
+</table></div>
+<h3>2.2 処理時間（1件あたり、ms）</h3>
+<figure class="chart" id="lat-figure">
+  <figcaption>
+    <span class="chart-title">メール100件それぞれの処理時間</span>
+    <span class="chart-sub">1つの点が1件。縦線は中央値。点にカーソルを合わせると件名と時間を表示（tfidf は約2msのため省略）</span>
+  </figcaption>
+  <div class="legend" aria-hidden="true"></div>
+  <svg id="lat-chart" role="img" aria-label="APIモデル3つの処理時間の分布。中央値はjev 180ms、decisions 237ms、gpt 686ms。jevは最大251msでばらつきが最も小さい"></svg>
+</figure>
+
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>モデル</th>
+<th>平均</th>
+<th>中央値</th>
+<th>最小</th>
+<th>p95</th>
+<th>最大</th>
+<th>標準偏差</th>
+<th>合計 (100件)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>jev</strong></td>
+<td><strong>187.1</strong></td>
+<td><strong>179.7</strong></td>
+<td><strong>152.3</strong></td>
+<td><strong>235.3</strong></td>
+<td><strong>250.7</strong></td>
+<td><strong>20.4</strong></td>
+<td><strong>18.7 秒</strong></td>
+</tr>
+<tr>
+<td>decisions</td>
+<td>257.7</td>
+<td>236.6</td>
+<td>193.3</td>
+<td>347.4</td>
+<td>668.1</td>
+<td>66.5</td>
+<td>25.8 秒</td>
+</tr>
+<tr>
+<td>gpt</td>
+<td>719.0</td>
+<td>686.1</td>
+<td>514.6</td>
+<td>1097.0</td>
+<td>1628.2</td>
+<td>179.9</td>
+<td>71.9 秒</td>
+</tr>
+<tr>
+<td>tfidf</td>
+<td>2.0</td>
+<td>1.9</td>
+<td>1.0</td>
+<td>3.1</td>
+<td>4.1</td>
+<td>0.6</td>
+<td>0.2 秒</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>jev は100件中 <strong>94件で decisions より速かった</strong>。</li>
+<li>400ms を超えたのは、jev 0件、decisions 2件、gpt 100件。</li>
+<li>文字数（95〜220字）と処理時間には、はっきりした関係は見られなかった。</li>
+</ul>
+<hr />
+<h2>3. 考察</h2>
+<h3>3.1 精度: jev は全問正解。差がついたのは「期限があるが急ぎではない」メール</h3>
+<ul>
+<li>jev は難易度high を含む100件すべてを正しく分類した。</li>
+<li>言葉と正解が逆になっている「わな」のメール（「【緊急】件名のメール訓練」「Re: 契約解除の件（継続で合意済み）」「お手すきの際に（SSL証明書が今夜切れる）」など）は、API の3モデルがほぼ全部正解した。<strong>文脈を読む能力そのものは、3モデルとも高い。</strong></li>
+<li>差がついたのは <strong>medium と high の境目</strong> だった。gpt の誤分類5件のうち4件は、「今週金曜まで」「来週月曜正午まで」のように <strong>期限が書いてあるだけで medium のメールを high と判定する過剰反応</strong> だった。数日先の期限を、汎用 LLM は「急ぎ」と受け取りやすいと考えられる。</li>
+<li>jev と decisions は、選択肢ごとの説明（criteria）をもとに確率を出して選ぶ方式で、こうした境目のメールでも定義どおりに判定できていた。</li>
+<li>ただし、有意差の検定では jev と gpt の差は p=0.062、jev と decisions の差は1件で、<strong>統計的に差があるとはまだ言えない</strong>。今回の結果は「jev が精度で劣ることはない」という強い証拠ではあるが、「jev がほかより優れている」と言い切るには、境目のメールを増やした追加の検証が必要である。</li>
+</ul>
+<h3>3.2 速度: jev が最も速く、最も安定している</h3>
+<ul>
+<li>中央値で jev は decisions より約57ms（約24%）速く、gpt より約3.8倍速い。94/100件で decisions を上回っており、<strong>速度の優位ははっきりしている</strong>。</li>
+<li>特に目立つのは安定性で、jev の標準偏差は 20ms と decisions（67ms）の約3分の1、最大でも 251ms だった。リアルタイムでメールを振り分けるような用途では、平均より最悪のときの遅延が問題になるので、この安定性は実用上の利点になる。</li>
+<li>gpt は文章を生成して JSON に整える分、時間がかかり、ばらつきも大きい。分類だけが目的なら、分類専用の API（jev / decisions）のほうが速度の面で有利である。</li>
+</ul>
+<h3>3.3 TF-IDF について</h3>
+<ul>
+<li>TF-IDF の正解率 0.86 は、20件版で測ったときの 0.55 から大きく上がっている。学習データが増えたことに加え、例文に含まれるラベルごとの決まり文句（low の「対応いただくことはありません」など）を覚えた可能性があり、<strong>文脈を理解した結果ではない点に注意が必要</strong>である。</li>
+<li>それでも、文脈を読む必要がある難易度medium では 0.79 にとどまり、API の3モデルとの差ははっきりしている。</li>
+</ul>
+<h3>3.4 総合評価</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>観点</th>
+<th>順位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>精度</td>
+<td>jev ≧ decisions &gt; gpt ≫ tfidf（API の3モデルの差は統計的には未確定）</td>
+</tr>
+<tr>
+<td>速度</td>
+<td><strong>jev</strong> &gt; decisions ≫ gpt（jev の優位ははっきりしている）</td>
+</tr>
+<tr>
+<td>安定性</td>
+<td><strong>jev</strong>（標準偏差 20ms）≫ decisions（67ms）≫ gpt（180ms）</td>
+</tr>
+</tbody>
+</table></div>
+<p>今回のタスクでは、<strong>jev は精度・速度・安定性のすべてで最も良い結果</strong> だった。緊急度の分類のように「決まった選択肢から1つ選ぶ」タスクでは、汎用 LLM より分類専用の API が適しており、その中でも jev は速度と安定性で優れていた。</p>
+<hr />
+<h2>4. 限界と今後の課題</h2>
+<ol>
+<li><strong>データ</strong>: 100件のうち80件は、生成 AI（Claude）が作成した例文である。正解ラベルと難易度も作成者の判断で付けており、#052（期限が「明日の終業時」）のように medium か high か判断が分かれるものがある。</li>
+<li><strong>件数</strong>: 精度の差は数件分で、統計的な結論を出すには足りない。medium と high の境目のメールを増やす必要がある。</li>
+<li><strong>計測回数</strong>: 各メールを1回ずつしか測っていない。<code>--repeat</code> で複数回測れば、時間の比較の確度が上がる。</li>
+<li><strong>未比較の観点</strong>: 料金、確信度（confidence）の当たり具合、もっと長いメールや英語のメールでの性能は、今回は比べていない。</li>
+</ol>
+<hr />
+<h2>付録: 再現方法</h2>
+<pre><code class="language-bash">cd trial_jev
+source .venv/bin/activate
+pip install -r requirements.txt
+# .env に OPENAI_API_KEY / TYPESAFE_API_KEY（または JEV_API_KEY）を設定
+python scripts/verify_urgency.py --out result_run1.json
+</code></pre>
+<ul>
+<li>データ: <code>data/emails.csv</code>（100件）、<code>data/emails_20.csv</code>（旧20件版）</li>
+<li>実装: <code>src/urgency_benchmark.py</code></li>
+<li>結果: <code>result_run1.json</code></li>
+</ul>
+</section>
+<section id="tab-data" role="tabpanel" aria-labelledby="tabbtn-data" hidden>
+  <p class="data-intro">検証に使ったメール100件の一覧です。件名をクリックすると本文を表示します。予測欄の「✓」は正解、「✗ 高」などは誤分類（予測したラベル）を表します。処理時間は API モデルの1件あたりの実測値です。</p>
+  <div class="filters">
+    <input type="search" id="f-q" placeholder="件名・本文を検索" aria-label="件名・本文を検索">
+    <label>緊急度 <select id="f-label"><option value="">すべて</option><option value="high">high（高）</option><option value="medium">medium（中）</option><option value="low">low（低）</option></select></label>
+    <label>難易度 <select id="f-diff"><option value="">すべて</option><option value="high">high</option><option value="medium">medium</option><option value="low">low</option></select></label>
+    <label>誤分類 <select id="f-err"><option value="">すべて</option><option value="any">いずれかのモデルが誤分類</option><option value="api">API モデルが誤分類</option><option value="jev">jev が誤分類</option></select></label>
+  </div>
+  <p class="count" id="f-count" aria-live="polite"></p>
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr>
+        <th>#</th><th>件名</th><th>正解</th><th>難易度</th>
+        <th>jev<br>予測</th><th>decisions<br>予測</th><th>gpt<br>予測</th><th>tfidf<br>予測</th>
+        <th class="num">jev<br>ms</th><th class="num">decisions<br>ms</th><th class="num">gpt<br>ms</th>
+      </tr></thead>
+      <tbody id="data-body"></tbody>
+    </table>
+  </div>
+</section>
+</main>
+<script>
+const DATA = {"models": ["jev", "decisions", "gpt", "tfidf"], "summary": {"tfidf": {"model": "tfidf", "accuracy": 0.86, "macro_f1": 0.861, "mean_ms": 1.97, "p95_ms": 3.06, "max_ms": 4.08, "total_s": 0.197, "fit_mean_ms": 226.5, "acc_diff_high": 0.85, "acc_diff_medium": 0.788, "acc_diff_low": 0.915}, "gpt": {"model": "gpt", "accuracy": 0.95, "macro_f1": 0.95, "mean_ms": 718.98, "p95_ms": 1096.96, "max_ms": 1628.22, "total_s": 71.898, "acc_diff_high": 0.95, "acc_diff_medium": 0.939, "acc_diff_low": 0.957}, "decisions": {"model": "decisions", "accuracy": 0.99, "macro_f1": 0.99, "mean_ms": 257.72, "p95_ms": 347.43, "max_ms": 668.12, "total_s": 25.772, "acc_diff_high": 1.0, "acc_diff_medium": 0.97, "acc_diff_low": 1.0}, "jev": {"model": "jev", "accuracy": 1.0, "macro_f1": 1.0, "mean_ms": 187.13, "p95_ms": 235.31, "max_ms": 250.71, "total_s": 18.713, "acc_diff_high": 1.0, "acc_diff_medium": 1.0, "acc_diff_low": 1.0}}, "latency": {"jev": [176.43, 175.9, 159.32, 177.43, 183.14, 198.69, 179.9, 204.16, 176.25, 191.7, 180.29, 184.09, 186.25, 195.92, 171.9, 179.49, 177.27, 210.33, 175.34, 197.85, 175.27, 203.5, 166.47, 218.56, 237.36, 187.02, 175.96, 189.9, 177.61, 189.15, 176.59, 178.03, 174.84, 195.81, 231.77, 189.11, 164.48, 224.25, 178.45, 195.65, 200.51, 236.51, 174.77, 179.01, 236.15, 209.98, 196.34, 173.56, 183.02, 168.14, 231.18, 173.26, 182.4, 171.65, 248.85, 177.13, 198.22, 169.02, 177.91, 173.27, 181.92, 204.53, 166.91, 175.39, 197.78, 189.83, 200.28, 250.71, 222.01, 185.12, 169.36, 167.36, 168.12, 169.6, 171.41, 176.69, 181.09, 176.18, 170.97, 194.25, 172.83, 176.14, 211.42, 170.7, 194.69, 185.86, 192.0, 179.35, 171.4, 169.57, 152.31, 168.34, 185.8, 184.24, 170.46, 173.19, 163.03, 235.31, 170.29, 194.58], "decisions": [277.2, 273.99, 217.74, 325.76, 209.49, 228.61, 208.61, 208.91, 280.33, 308.08, 298.4, 215.46, 193.35, 211.13, 309.28, 223.84, 228.48, 668.12, 489.37, 219.42, 264.47, 196.29, 229.43, 236.89, 244.12, 354.2, 194.16, 268.22, 266.55, 306.98, 225.45, 208.73, 206.03, 204.03, 336.46, 287.88, 297.1, 204.32, 220.96, 328.07, 369.62, 222.27, 216.33, 232.29, 340.58, 221.89, 211.61, 276.24, 220.09, 199.7, 353.03, 276.03, 195.05, 326.08, 269.16, 208.25, 195.74, 195.24, 226.09, 208.51, 338.44, 236.38, 270.61, 217.97, 197.09, 209.6, 213.2, 285.99, 221.83, 295.4, 327.0, 322.4, 211.96, 261.67, 273.07, 347.43, 256.29, 292.12, 258.62, 213.04, 206.01, 206.84, 283.17, 222.18, 201.26, 274.0, 264.89, 215.92, 268.0, 264.38, 231.29, 211.74, 213.62, 268.59, 272.6, 196.66, 239.71, 256.3, 247.31, 337.39], "gpt": [737.37, 942.27, 720.93, 541.32, 933.76, 844.16, 1453.19, 695.03, 1628.22, 1125.24, 769.97, 751.64, 633.03, 544.82, 711.88, 590.47, 622.86, 610.21, 716.45, 576.13, 830.31, 561.01, 626.59, 722.68, 587.52, 742.03, 617.21, 630.8, 626.34, 686.24, 616.85, 732.11, 642.86, 601.18, 855.42, 618.67, 570.5, 677.36, 686.44, 734.85, 553.11, 639.15, 679.76, 592.04, 1082.18, 744.26, 726.05, 1281.88, 920.84, 874.91, 663.14, 688.88, 728.8, 600.53, 755.62, 640.49, 772.49, 726.14, 578.98, 634.78, 699.8, 1108.65, 729.76, 620.3, 1096.96, 620.96, 601.85, 727.62, 685.88, 736.28, 674.87, 514.65, 675.93, 740.81, 812.38, 675.5, 615.49, 603.16, 722.41, 607.28, 643.82, 692.94, 585.32, 523.99, 645.27, 779.3, 749.88, 743.04, 780.62, 721.21, 804.35, 633.07, 594.27, 647.18, 697.15, 551.36, 532.48, 607.53, 575.95, 718.4]}, "preds": {"tfidf": ["high", "high", "high", "high", "high", "medium", "high", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "low", "low", "low", "low", "low", "medium", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "medium", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "medium", "high", "high", "high", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "high", "medium", "medium", "medium", "medium", "medium", "low", "medium", "medium", "medium", "high", "low", "medium", "high", "medium", "high", "medium", "medium", "low", "low", "low", "high", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "medium", "high", "high", "low", "low", "low", "low", "low", "low"], "gpt": ["high", "high", "high", "high", "high", "high", "high", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "low", "low", "low", "low", "low", "low", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "medium", "medium", "medium", "medium", "medium", "high", "high", "high", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "high", "medium", "medium", "medium", "medium", "medium", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "medium", "low", "low", "low", "low", "low", "low"], "decisions": ["high", "high", "high", "high", "high", "high", "high", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "low", "low", "low", "low", "low", "low", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "medium", "medium", "medium", "medium", "medium", "high", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low"], "jev": ["high", "high", "high", "high", "high", "high", "high", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "low", "low", "low", "low", "low", "low", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "high", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low", "low"]}, "mails": [{"label": "high", "diff": "low", "subject": "【緊急】本番環境の障害対応のお願い", "body": "お疲れ様です。インフラ担当の佐藤です。10時12分ごろから本番Webサーバーへの接続エラーが急増しており、現在ほぼ全てのユーザーがログインできない状態です。監視ツールでは複数のノードがダウンしていることを確認しました。原因はまだ特定できておらず、顧客からの問い合わせも増え始めています。対応可能な方は、至急、障害対応用のチャンネルに参加してください。30分後に状況をあらためて共有します。"}, {"label": "high", "diff": "medium", "subject": "契約解除のご通告について", "body": "いつもお世話になっております。株式会社ミライ商事の山田です。先月から続いている請求システムの不具合について、再三ご連絡しているにもかかわらず、根本的な解決策をいただけておりません。本日17時までに具体的な復旧計画と責任者からの回答をいただけない場合は、契約書の定めに従い、明日付で契約を解除させていただきます。至急ご対応をお願いいたします。"}, {"label": "high", "diff": "low", "subject": "情報漏えいの疑いについて至急確認願います", "body": "お疲れ様です。先ほど、社外の方から「御社の顧客リストらしきファイルが誰でも閲覧できる状態で共有されている」との連絡がありました。リンクを確認したところ、氏名とメールアドレスを含む約3,000件のデータが見える状態です。まず共有設定を停止し、法務部と情報システム部に今すぐ連絡してください。事実確認と一次報告を本日中にお願いします。"}, {"label": "high", "diff": "low", "subject": "決済がすべてエラーになっています", "body": "決済システムの件で緊急のご連絡です。本日9時ごろから、ECサイトのクレジットカード決済がすべてエラーになっています。現時点で注文は一件も完了しておらず、売上に直接影響が出ています。決済代行会社のステータスページでは障害が報告されていないため、当社側の設定変更が原因の可能性があります。原因調査を最優先でお願いします。"}, {"label": "high", "diff": "low", "subject": "本日15時の役員会資料が未提出です", "body": "お疲れ様です。本日15時から開始する役員会で使う来期予算資料が、まだ届いていません。役員への事前配布が必要なため、遅くとも14時までに最終版を送付していただく必要があります。数字が確定していない箇所があれば、暫定値でも構いませんので、まず送ってください。間に合わない場合は、すぐに電話で連絡をお願いします。"}, {"label": "high", "diff": "medium", "subject": "部品納期の件、明朝までに回答をください", "body": "貴社からの部品納入が予定より5日遅れており、当社の組立ラインが明日の午後には停止する見込みです。ラインが止まると1日あたり数百万円の損失が出ます。つきましては、明朝9時までに正式な納期と代替手段について、書面で回答をお願いします。回答がない場合は、他社からの調達に切り替えさせていただきます。"}, {"label": "high", "diff": "low", "subject": "重大な脆弱性への対応について", "body": "セキュリティ担当です。当社製品で使用しているライブラリに、外部から認証なしでコードを実行できる重大な脆弱性が公表され、すでに悪用が確認されています。本番環境のバージョンも対象に含まれています。本日中にパッチを適用し、完了したら報告してください。適用が難しい場合は、一時的にサービスを遮断することも検討します。"}, {"label": "medium", "diff": "low", "subject": "来週の定例会議の日程調整", "body": "お疲れ様です。来週の定例会議について、日程を調整させてください。候補は、火曜14時、水曜10時、木曜16時の3つです。議題は、第3四半期の進捗確認と来期計画の方向性です。ご都合のよい日時を、今週金曜日までに返信してください。全員の回答が揃い次第、会議室とオンライン会議の予約を行います。"}, {"label": "medium", "diff": "low", "subject": "お見積書のご確認のお願い", "body": "いつもお世話になっております。先日ご依頼いただいたシステム改修の見積書を添付いたしました。工数の内訳と、前回からの変更点をまとめています。ご不明な点や修正のご希望があれば、金曜日までにご連絡いただけますでしょうか。内容が固まり次第、正式な発注書の手続きに進めたいと考えています。"}, {"label": "medium", "diff": "low", "subject": "月次レポートのレビュー依頼", "body": "今月分の営業月次レポートが完成しました。売上は前月比で微増、新規顧客数は目標をやや下回っています。今週中に一度目を通していただき、気になる点や追記すべき項目があれば、コメントをください。来週の部門会議で共有する予定ですので、その前に反映したいと考えています。"}, {"label": "medium", "diff": "medium", "subject": "新機能の仕様について質問があります", "body": "検索機能の仕様書を拝見しました。並び順の条件について、「関連度順」と「新着順」が同時に指定された場合の優先順位が記載されていないようです。次のスプリント計画会議までに方針を決めておきたいので、お手すきの際に確認していただけますか。ご回答は今週中で大丈夫です。"}, {"label": "medium", "diff": "medium", "subject": "備品購入の承認をお願いします", "body": "チーム用の外付けモニター2台(合計約6万円)の購入申請を、経費システムに提出しました。在宅勤務が増えて、画面の作業領域が足りないことが理由です。今月中に承認をいただければ、来月初めに発注できます。お忙しいところ恐れ入りますが、ご確認をお願いします。"}, {"label": "medium", "diff": "low", "subject": "研修参加希望の取りまとめ", "body": "来月実施するリーダー研修の参加希望を取りまとめています。日程は11月12日と13日の2日間、場所は本社の研修室です。参加可否を、来週水曜日までに返信してください。定員は20名で、希望者が多い場合は部署ごとのバランスを見て調整します。"}, {"label": "medium", "diff": "medium", "subject": "導入事例資料の送付のお願い", "body": "先日の打ち合わせでお話しした、他社での導入事例の資料を、来週あたりにお送りいただけますでしょうか。社内で導入の検討を進めており、来月初めの検討会で参考にしたいと考えています。急ぎではありませんが、検討会の前日までにいただけると助かります。"}, {"label": "low", "diff": "low", "subject": "社内ニュースレター 10月号", "body": "社内ニュースレター10月号をお届けします。今月は、新入社員の紹介、先月開催した社内イベントのレポート、おすすめの書籍コーナーなどを掲載しています。お時間のあるときに、ゆっくりご覧ください。ご意見やご感想があれば、気軽に編集部までお寄せください。"}, {"label": "low", "diff": "low", "subject": "忘年会の会場候補について", "body": "今年の忘年会の会場候補を、いくつか集めてみました。駅前の居酒屋、会社近くのイタリアン、少し離れた貸切のレストランの3つです。気になるお店や、希望の予算感があれば、気軽に意見をください。締切は特に設けていないので、思いついたときで大丈夫です。"}, {"label": "low", "diff": "high", "subject": "緊急時対応訓練のご案内", "body": "年に一度の「緊急時対応訓練」のご案内です。来月の中旬に、全社で避難訓練を行う予定です。日時は決まり次第あらためてお知らせしますので、現時点で対応は不要です。参考資料として、前回の訓練の様子をまとめた動画のリンクを共有します。"}, {"label": "low", "diff": "low", "subject": "オンラインセミナーのご案内", "body": "来月以降に開催予定のオンラインセミナーのご案内です。テーマは、生成AIの業務活用と、データ分析の基礎の2つで、どちらも1時間程度、録画視聴も可能です。ご興味があれば、添付のリンクからお申し込みください。参加は任意で、申し込み期限もありません。"}, {"label": "low", "diff": "low", "subject": "先日のお礼", "body": "先日は、お忙しい中、名刺交換のお時間をいただき、ありがとうございました。業界の動向について伺ったお話が大変勉強になりました。また機会があれば、ぜひあらためてお話しさせてください。このメールへのご返信は不要です。今後ともよろしくお願いいたします。"}, {"label": "low", "diff": "medium", "subject": "共有フォルダ整理のお願い", "body": "共有フォルダに、古いファイルや重複したデータが増えてきました。時間のあるときに、ご自身が作成した不要なファイルを整理していただけると嬉しいです。特に期限はなく、年末までにゆっくり進めてもらえれば十分です。整理のルールは、フォルダ内のREADMEにまとめてあります。"}, {"label": "high", "diff": "low", "subject": "【至急】ECサイトの在庫表示がすべて0になっています", "body": "お疲れ様です。EC運営チームの森です。今朝9時の在庫連携バッチが失敗したようで、ECサイト上の全商品の在庫表示が0になり、注文を受け付けられない状態です。平日午前は1時間あたり約200万円の売上がある時間帯です。至急、システム担当の方で原因の確認と復旧をお願いします。"}, {"label": "high", "diff": "low", "subject": "【緊急】経理部PCでランサムウェア感染の疑い", "body": "情報システム部の石井です。先ほど経理部のPC1台で、ファイルが次々に暗号化され拡張子が変わる現象が確認されました。該当PCはLANケーブルを抜いて隔離済みですが、共有フォルダへの拡大が懸念されます。セキュリティ担当の方は今すぐ対策チャンネルに集まってください。"}, {"label": "high", "diff": "low", "subject": "本日17時締切の入札書類に押印漏れがあります", "body": "総務部の川口です。本日17時必着の公共工事入札の書類を最終確認したところ、代表者印が1か所漏れていました。押印には部長の決裁が必要です。持参の時間を考えると16時までに押印を終える必要があります。部長のご予定を至急押さえていただけますか。"}, {"label": "high", "diff": "low", "subject": "【至急】顧客に誤った請求メールが一斉送信されました", "body": "CS部の松本です。30分前に、約3,000名のお客様へ誤った金額の請求メールが自動送信されてしまいました。すでにコールセンターに問い合わせが殺到しています。訂正とお詫びのメール文案を1時間以内に確定し、送信したいので、法務と広報の確認を至急お願いします。"}, {"label": "high", "diff": "low", "subject": "本番DBのディスク使用率が98%に達しています", "body": "インフラ担当の高田です。本番データベースのディスク使用率が98%に達しました。現在の増加ペースだと、あと1時間ほどで書き込みができなくなり、全サービスが停止します。ストレージの緊急拡張には費用承認が必要なため、責任者の方は至急判断をお願いします。"}, {"label": "high", "diff": "low", "subject": "【緊急】第2ラインで負傷事故が発生しました", "body": "工場長の岡田です。10時40分ごろ、第2ラインで作業員が機械に手を挟まれる事故が発生し、救急搬送されました。ラインは停止しています。労働基準監督署への報告とご家族への連絡が必要です。本社の安全管理責任者の方は、今すぐ私の携帯までご連絡ください。"}, {"label": "high", "diff": "low", "subject": "今夜のリリースを止めるべき不具合が見つかりました", "body": "QAの藤井です。今夜20時リリース予定のバージョンで、決済金額が一部誤って計算される不具合を発見しました。このまま出すとお客様に過大請求が発生します。リリースを中止するか判断が必要なため、18時から緊急の判断会議を開かせてください。"}, {"label": "high", "diff": "low", "subject": "【至急】A社の基幹システムが当社APIエラーで停止中", "body": "営業の村上です。最大顧客のA社から、当社APIの認証エラーにより基幹システムが止まり、出荷業務ができないと連絡がありました。先方の役員からも電話が入っています。至急、技術者を1名アサインし、A社との電話会議に入っていただけないでしょうか。"}, {"label": "high", "diff": "low", "subject": "顧客の個人情報ファイルを誤送信しました", "body": "営業部の小林です。先ほど、顧客約500名分の氏名・電話番号を含むファイルを、誤って社外の取引先に送信してしまいました。先方には削除をお願いしましたが、まだ確認が取れていません。本日中に経緯の報告と対応方針の決定が必要ですので、至急ご指示をお願いします。"}, {"label": "high", "diff": "low", "subject": "【緊急】SNSで当社製品の発火動画が拡散しています", "body": "広報部の西田です。当社のモバイルバッテリーが発火したとする動画がSNSで拡散され、数時間で5万回以上再生されています。報道機関からも問い合わせが来ています。本日午後に公式コメントを出したいので、品質保証部と至急、事実確認と方針の打ち合わせをお願いします。"}, {"label": "high", "diff": "medium", "subject": "先日の件について（ご相談）", "body": "いつも大変お世話になっております。株式会社サクラ物流の中村でございます。先日来ご相談しております配送遅延の件、社内でも検討を重ねてまいりました。大変申し上げにくいのですが、本日中に具体的な改善策をご提示いただけない場合、来月以降の発注をすべて他社へ切り替える方向で社内決裁を進めております。何卒よろしくお願い申し上げます。"}, {"label": "high", "diff": "high", "subject": "ご報告", "body": "お疲れ様です。物流センターの吉田です。今日は朝から荷物が多くてバタバタしていました。ところで、さきほど冷凍倉庫の温度計を見たら-5℃まで上がっていました。中にあるのは午後に出荷する冷凍食品です。このまま温度が上がると全量廃棄になるかもしれません。どうしたらいいでしょうか。"}, {"label": "high", "diff": "medium", "subject": "明日の展示会の件", "body": "お疲れ様です。マーケティングの佐々木です。明日の展示会について、ブース設営業者から連絡がないので確認したところ、こちらの発注が先方に届いていなかったそうです。業者によると、今日の18時までに再発注しないと明朝の設営に間に合わないとのことです。発注には課長の承認が必要です。"}, {"label": "high", "diff": "high", "subject": "Re: 定例会議の議事録", "body": "お疲れ様です。議事録ありがとうございます。2点目の予算の件は、次回の定例で再確認させてください。3点目は了解です。追伸：先ほど法務から、B社から損害賠償を求める内容証明郵便が届いたと連絡がありました。書面に記載された回答期限は本日17時です。"}, {"label": "high", "diff": "high", "subject": "お手すきの際にご確認ください", "body": "お疲れ様です。Web担当の山口です。念のための共有ですが、当社コーポレートサイトのSSL証明書の有効期限が本日23時59分になっていました。更新されないと、明日0時から全てのお客様のブラウザに警告が出て、サイトにアクセスできなくなります。更新作業には管理者権限が必要です。"}, {"label": "high", "diff": "high", "subject": "経費精算システムについて", "body": "お疲れ様です。経理部の清水です。経費精算システムの画面で、検索条件を空にして検索すると、他の社員の申請内容が口座番号を含めてすべて表示されることに気づきました。全社員がアクセスできるシステムです。私の操作の問題かもしれませんが、念のためご確認いただけますか。"}, {"label": "high", "diff": "medium", "subject": "来客の件", "body": "お疲れ様です。受付の井上です。本日14時にC社の社長様がご来社予定と伺っていますが、受付システムに予定が登録されておらず、会議室も空いていません。担当の田中さんは本日お休みです。社長様はあと30分ほどで到着されるそうです。どなたか対応いただけますか。"}, {"label": "high", "diff": "high", "subject": "ちょっと気になったこと", "body": "お疲れ様です。3階の野村です。気のせいかもしれないのですが、給湯室のあたりでガスのような臭いがしています。最初は少しだったのですが、だんだん強くなっている気がします。近くの席の人も同じことを言っています。誰に伝えればいいかわからず、とりあえずご連絡しました。"}, {"label": "high", "diff": "high", "subject": "振込先変更のご連絡について", "body": "お疲れ様です。経理の木村です。取引先のE社を名乗る方から、本日15時の支払い分から振込先口座を変更してほしいというメールが来ました。ただ、送信元のドメインが普段と1文字違っています。担当者はすでに新しい口座で振込処理を進めているところです。このまま進めてよいでしょうか。"}, {"label": "high", "diff": "medium", "subject": "月末の支払いについて", "body": "お疲れ様です。財務の林です。本日は月末ですが、仕入先D社への支払い3,200万円が承認待ちのまま止まっています。銀行の当日扱いの締めは15時です。支払いが遅れると、契約上の遅延損害金が発生し、取引停止条項にも該当します。承認者の部長が出張中のため、代理承認についてご相談させてください。"}, {"label": "high", "diff": "medium", "subject": "システム移行のお知らせへの返信", "body": "お知らせありがとうございます。経理部の斎藤です。ご案内の移行作業ですが、開始が今夜22時となっています。経理部では今夜、年に一度の決算バッチを実行する予定で、システムが止まると明後日の決算発表に間に合いません。作業開始時間の変更が可能か、本日中にご判断いただけますか。"}, {"label": "high", "diff": "medium", "subject": "例の件、どうなりましたか", "body": "お疲れ様です。午前中にお願いした、監督官庁への定期報告書の件です。提出期限が本日正午で、あと40分しかありません。まだ部長の承認が下りていないようです。間に合わない場合は事前に先方へ連絡する必要がありますので、状況を教えてください。"}, {"label": "high", "diff": "high", "subject": "新人研修の振り返りと今後について", "body": "お疲れ様です。人事部の前田です。今週の新人研修は大きなトラブルもなく、参加者アンケートでも高評価でした。来年度に向けた改善点は、別途資料にまとめてお送りします。最後に、本件とは別ですが、研修会場のホテルから、本日18時からの夕食会で提供予定の料理に、参加者が申告しているアレルギー食材が含まれていると連絡がありました。"}, {"label": "high", "diff": "high", "subject": "ご無沙汰しております", "body": "ご無沙汰しております。以前同じ部署でお世話になった後藤です。実は、御社のログイン画面にそっくりな偽サイトが出回っているようで、私の会社でも何人かがそこでパスワードを入力してしまったようです。今朝から急に同じ報告が増えています。お伝えしておいたほうがよいと思い、ご連絡しました。"}, {"label": "high", "diff": "high", "subject": "返品の件", "body": "お世話になっております。昨日届いた乳児用粉ミルクの缶を開けたところ、中に小さな金属片のようなものが入っていました。子どもには飲ませていません。近所のスーパーには、同じロット番号の商品がまだ並んでいました。返品の方法を教えてください。"}, {"label": "high", "diff": "medium", "subject": "本日のメルマガ配信について", "body": "お疲れ様です。販促チームの坂本です。本日12時に配信予定のメルマガをテスト送信したところ、全員の宛名が「{name}様」と表示されていました。配信は予約設定により12時に自動で開始されます。現在11時20分です。設定を変更できる方を探しています。"}, {"label": "medium", "diff": "low", "subject": "来週月曜の会議資料の準備のお願い", "body": "お疲れ様です。来週月曜の部内会議で、各チームの上期の進捗を共有していただく予定です。お手数ですが、スライド3枚程度で資料をまとめ、今週金曜の17時までに共有フォルダへ格納してください。フォーマットは前回と同じもので構いません。"}, {"label": "medium", "diff": "low", "subject": "契約書ドラフトのレビュー依頼（今週中）", "body": "法務部の谷口です。F社との業務委託契約書のドラフトが届きましたので、内容のご確認をお願いします。特に業務範囲と検収条件について、事業部の観点からコメントをいただきたいです。今週金曜までにコメントをいただければ、来週中に先方へ返送できます。"}, {"label": "medium", "diff": "low", "subject": "アンケート回答のお願い（締切：来週水曜）", "body": "人事部です。今年度の従業員満足度調査へのご協力をお願いします。所要時間は10分程度です。回答は匿名で集計され、職場環境の改善に活用します。回答期限は来週水曜日です。下記のリンクからご回答ください。"}, {"label": "medium", "diff": "low", "subject": "新システムのアカウント申請について", "body": "情報システム部です。来週から新しい勤怠管理システムの利用を開始します。利用にはアカウント申請が必要ですので、今週中に申請フォームから手続きをお願いします。申請がない場合、来週以降の打刻ができなくなりますのでご注意ください。"}, {"label": "medium", "diff": "low", "subject": "出張報告書の提出について", "body": "総務部です。先月の出張に関する報告書と精算書類が未提出の方がいらっしゃいます。今月の精算締切は3日後の木曜日です。締切を過ぎると翌月の精算となりますので、お早めにご提出をお願いします。"}, {"label": "medium", "diff": "medium", "subject": "面接評価シート提出のお願い", "body": "人事部の安藤です。先日ご協力いただいた中途採用の面接について、評価シートの提出をお願いします。明後日の選考会議で合否を決定する予定ですので、明日の終業時までにご提出いただけると助かります。"}, {"label": "medium", "diff": "low", "subject": "顧客からの機能要望への回答について", "body": "営業の大野です。G社から、帳票のCSV出力機能を追加してほしいという要望をいただきました。今週金曜までに対応可否と概算スケジュールを回答する約束をしています。開発チームで実現可能性を確認していただけますか。"}, {"label": "medium", "diff": "low", "subject": "次期予算案の数値確認のお願い", "body": "経営企画部です。来週火曜の経営会議に提出する次期予算案の、各部門の数値をまとめました。添付ファイルの貴部門の数値に誤りがないか、来週月曜の正午までにご確認ください。修正がある場合は直接ファイルに追記をお願いします。"}, {"label": "medium", "diff": "low", "subject": "オフィス移転に伴う荷物整理のお願い", "body": "総務部です。来週末にオフィス移転を予定しています。各自の私物と書類は、来週木曜までに配布した段ボールに詰め、ラベルを貼ってください。不要な書類は機密文書回収ボックスにお願いします。"}, {"label": "medium", "diff": "low", "subject": "請求書の再発行のご依頼", "body": "いつもお世話になっております。H社経理部の上田です。先日お送りいただいた請求書の宛名に誤りがありました。当社の支払いは今月末の締めとなっておりますので、数日中に正しい宛名で再発行いただけますでしょうか。"}, {"label": "medium", "diff": "low", "subject": "プレスリリース原稿の確認依頼", "body": "広報部の内田です。来週木曜に発表予定の新サービスのプレスリリース原稿を作成しました。サービス概要と価格の記載に誤りがないか、来週月曜までにご確認いただき、修正点があればお知らせください。"}, {"label": "medium", "diff": "high", "subject": "【至急】と書きましたが来週で大丈夫です", "body": "お疲れ様です。先ほどのメールの件名に「至急」と入れてしまいましたが、確認したところ実際の期限は来週水曜でした。新規取引先の口座登録に必要な書類一式を、それまでにご用意いただければ大丈夫です。お騒がせしてすみません。"}, {"label": "medium", "diff": "medium", "subject": "緊急連絡網の更新のお願い", "body": "総務部です。年に一度の緊急連絡網の更新を行います。電話番号や住所に変更がある方は、今週金曜までに添付のフォームでご連絡ください。変更がない方は回答不要です。"}, {"label": "medium", "diff": "medium", "subject": "障害対応手順書の見直しについて", "body": "SREチームの宮本です。先月発生した障害の振り返りを受けて、障害対応手順書を全面的に見直しました。各チームの担当範囲に誤りや不足がないか、来週中にレビューをお願いします。レビュー結果を反映して、月末に正式版を公開する予定です。"}, {"label": "medium", "diff": "medium", "subject": "至急ではありませんが", "body": "お疲れ様です。至急ではありませんが、ご相談です。来週月曜にI社を訪問して新サービスを提案する予定です。提案資料のドラフトを木曜までに作っていただけますか。金曜に一度読み合わせをしたいと考えています。"}, {"label": "medium", "diff": "medium", "subject": "セキュリティ研修未受講者の方へ（リマインド）", "body": "情報セキュリティ委員会です。必須のセキュリティ研修について、受講期限は今月25日、あと4日となりました。期限までに受講が完了しない場合、社内システムのアカウントが一時的に制限されます。オンラインで30分ほどで完了しますので、早めの受講をお願いします。"}, {"label": "medium", "diff": "medium", "subject": "Re: 先日の障害の再発防止策", "body": "お疲れ様です。先日の障害は現在すべて復旧しており、お客様への影響も解消しています。ただ、来週の定例でJ社へ再発防止策の報告書を提出することになりました。原因分析のパートを金曜までにご執筆いただけますか。"}, {"label": "medium", "diff": "high", "subject": "年末調整の書類について", "body": "人事部です。お手すきの際で構いませんので、年末調整の書類のご提出をお願いします。なお、締切は来週の12月10日です。期限を過ぎると、ご自身で確定申告が必要になる場合がありますのでご注意ください。"}, {"label": "medium", "diff": "medium", "subject": "明日の打ち合わせについて", "body": "お疲れ様です。明日予定していたK社との打ち合わせですが、先方のご都合により来週に延期となりました。お手数ですが、来週のご都合のよい日時の候補を、明後日までにいくつかご連絡いただけますでしょうか。"}, {"label": "medium", "diff": "medium", "subject": "お客様からのクレームについて（対応済みのご報告）", "body": "お疲れ様です。昨日ご報告したL社様のクレームの件、本日私からお電話でお詫びし、ご納得いただきました。ただし、今週中に書面で経緯と再発防止策をご報告するようご要望がありました。文面のチェックをお願いできますか。"}, {"label": "medium", "diff": "high", "subject": "重大インシデント訓練のシナリオ作成", "body": "お疲れ様です。来月実施する全社訓練で使う「重大インシデント発生」のシナリオを作成します。今回は大規模な個人情報漏えいを想定しています。たたき台を来週火曜までに作成し、共有していただけますか。"}, {"label": "medium", "diff": "medium", "subject": "ご確認ください", "body": "添付の発注書を見たところ、数量が先方の見積書と違っていました（発注書は500個、見積書は5,000個）。納品は来週金曜ですので、それまでに先方と数量を確定させる必要があります。担当の方からご確認をお願いします。"}, {"label": "medium", "diff": "low", "subject": "パスワード有効期限のお知らせ", "body": "このメールはシステムから自動送信されています。お使いのアカウントのパスワードは、5日後に有効期限が切れます。期限が切れるとログインできなくなりますので、期限までにパスワードを変更してください。"}, {"label": "medium", "diff": "high", "subject": "第3四半期の振り返り", "body": "お疲れ様です。第3四半期の振り返りです。売上は計画比102%で着地し、新規顧客の獲得も順調でした。一方で、既存顧客の解約率がやや上昇しており、来期の課題と考えています。詳細は添付資料をご覧ください。なお、来週の部長会までに、各自の来期目標シートを提出してください。"}, {"label": "medium", "diff": "low", "subject": "取引先からの値上げ通知について", "body": "購買部の太田です。M社から、来月の納品分より原材料費の高騰を理由に8%値上げしたいという通知が届きました。受け入れの可否を今週中に回答してほしいとのことです。代替の仕入先も含めて、一度ご相談させてください。"}, {"label": "medium", "diff": "medium", "subject": "ノートPCの調子が悪いです", "body": "お疲れ様です。営業部の原田です。私のノートPCの起動が遅く、時々フリーズします。今のところ業務はできていますが、来週水曜のお客様向けデモで使う予定なので、それまでに修理か交換をお願いできないでしょうか。"}, {"label": "medium", "diff": "medium", "subject": "【重要】就業規則改定に関する意見募集", "body": "人事部です。就業規則の一部改定について、従業員の皆様からご意見を募集します。主な改定点は在宅勤務手当と休暇制度です。ご意見がある方は、来週金曜までに添付のフォームからご提出ください。"}, {"label": "low", "diff": "low", "subject": "社内報 11月号発行のお知らせ", "body": "社内報11月号を発行しました。今月の特集は、新しく立ち上がった海外拠点の紹介です。そのほか、社員のおすすめ休日スポットや、部活動の活動報告も掲載しています。お時間のあるときにご覧ください。"}, {"label": "low", "diff": "low", "subject": "社員食堂の新メニューのご紹介", "body": "社員食堂から、来月の新メニューのご紹介です。季節の野菜を使ったカレーと、魚の定食が加わります。ご要望があれば、食堂入口の意見箱にお寄せください。"}, {"label": "low", "diff": "low", "subject": "会議室予約システムの画面デザイン変更について", "body": "情報システム部です。来月から、会議室予約システムの画面デザインが新しくなります。機能や操作方法に変更はありませんので、特に対応いただくことはありません。新しい画面イメージを添付します。"}, {"label": "low", "diff": "low", "subject": "部署異動のご挨拶", "body": "お疲れ様です。このたび、4月1日付で営業部からマーケティング部へ異動することになりました。営業部の皆様には大変お世話になりました。新しい部署でも引き続きよろしくお願いいたします。"}, {"label": "low", "diff": "low", "subject": "書籍購入補助制度のご案内", "body": "人事部です。業務に関連する書籍の購入費用を補助する制度があります。申請は通年で受け付けており、1人あたり年間2万円まで補助します。詳しくは社内ポータルの制度ページをご覧ください。"}, {"label": "low", "diff": "low", "subject": "フットサル部 メンバー募集", "body": "フットサル部では新しいメンバーを募集しています。毎月第2土曜日に、会社近くの体育館で活動しています。経験は問いません。見学だけでも歓迎ですので、気軽に声をかけてください。"}, {"label": "low", "diff": "low", "subject": "オフィスの観葉植物を入れ替えました", "body": "総務部です。オフィスの観葉植物を新しいものに入れ替えました。水やりは業者が行いますので、皆様にお手入れいただく必要はありません。オフィスの雰囲気が少しでも明るくなればうれしいです。"}, {"label": "low", "diff": "low", "subject": "先週のセミナー資料を共有します", "body": "お疲れ様です。先週参加した「生成AIの業務活用」セミナーの資料を共有します。他社の事例がいくつか紹介されていて、参考になりました。ご興味のある方はご覧ください。"}, {"label": "low", "diff": "low", "subject": "業界ニュースまとめ（今週号）", "body": "今週の業界ニュースをまとめました。競合のN社が新製品を発表したこと、物流業界で人手不足が続いていることなどを取り上げています。情報共有として、お時間のあるときにお読みください。"}, {"label": "low", "diff": "low", "subject": "年末年始休業のお知らせ", "body": "総務部です。年末年始の休業期間は、12月29日から1月3日までです。休業期間中のお問い合わせは、1月4日以降に順次対応いたします。ご理解のほど、よろしくお願いいたします。"}, {"label": "low", "diff": "high", "subject": "【緊急】件名のメール訓練について（ご案内）", "body": "情報セキュリティ委員会です。来月、標的型攻撃メールの訓練を実施します。期間中、「緊急」「至急」などの件名で訓練メールが届くことがあります。訓練についての事前の対応は不要です。ご参考までにお知らせします。"}, {"label": "low", "diff": "medium", "subject": "昨日の障害は復旧済みです", "body": "お疲れ様です。インフラチームです。昨日発生した本番環境の障害は、22時に完全に復旧しました。原因はネットワーク機器の設定ミスで、すでに修正済みです。原因報告書を添付しますので、ご参考までにご覧ください。皆様に対応いただくことはありません。"}, {"label": "low", "diff": "high", "subject": "Fw: 【緊急】サーバー停止のお知らせ（2019年）", "body": "お疲れ様です。いま作成している障害対応マニュアルの参考として、2019年に送られた「緊急・サーバー停止」のメールを転送します。当時の連絡の流れがよくわかる資料です。急ぎではありませんので、お時間のあるときに目を通してください。"}, {"label": "low", "diff": "medium", "subject": "危機管理セミナーのご案内", "body": "外部講師をお招きして、「緊急事態に企業はどう対応すべきか」をテーマにしたセミナーを開催します。大規模障害や情報漏えいの事例を交えたお話です。参加は任意で、事前申込は不要です。当日、会場に直接お越しください。"}, {"label": "low", "diff": "medium", "subject": "地震発生時の行動マニュアル（改訂版）の共有", "body": "総務部です。地震発生時の行動マニュアルを改訂しました。主な変更点は、避難場所と安否確認の方法です。至急の対応は不要ですので、お時間のあるときに一度目を通しておいてください。"}, {"label": "low", "diff": "high", "subject": "Re: 契約解除の件", "body": "お疲れ様です。先日ご相談したO社との契約解除の件ですが、先方と話し合った結果、契約を継続することで合意しました。条件の変更もありません。特に対応いただくことはありませんので、ご報告まで。"}, {"label": "low", "diff": "medium", "subject": "他社の情報漏えい事故の事例共有", "body": "お疲れ様です。先日報道された他社の大規模な情報漏えい事故について、記事を共有します。当社のシステムや顧客への影響はありません。社内のセキュリティ意識を高める参考として、ご一読ください。"}, {"label": "low", "diff": "high", "subject": "至急！歓迎会のお店決めたい（笑）", "body": "お疲れ様です！件名は大げさですが、来月の新人歓迎会のお店を探しています。おすすめのお店があれば教えてください。急ぎではないので、思いついたときにで大丈夫です。"}, {"label": "low", "diff": "medium", "subject": "障害ゼロ記録達成のお知らせ", "body": "開発本部です。本番システムが、連続365日間の障害ゼロを達成しました。日々の監視と改善に取り組んでくださった皆様のおかげです。ささやかですが、来月お祝いのお菓子を配る予定です。"}, {"label": "low", "diff": "medium", "subject": "本日のお弁当が余っています", "body": "お疲れ様です。本日のお昼の会議で、お弁当が5個余ってしまいました。3階の休憩スペースに置いておきますので、ご自由にお持ちください。なくなり次第終了です。"}, {"label": "low", "diff": "high", "subject": "本日18時から全社懇親会です（任意参加）", "body": "本日18時から、1階ラウンジで全社懇親会を行います。参加は任意で、事前の申込も不要です。お仕事が落ち着いた方は、途中からでもお気軽にお立ち寄りください。"}, {"label": "low", "diff": "medium", "subject": "重大発表!? 新しいロゴが決まりました", "body": "広報部です。社員投票の結果、会社の新しいロゴが決まりました。たくさんのご投票ありがとうございました。名刺やWebサイトへの反映は、来年の春頃から順次進める予定です。"}, {"label": "low", "diff": "high", "subject": "緊急セキュリティパッチの適用完了について", "body": "インフラチームです。昨夜、全サーバーへの緊急セキュリティパッチの適用が完了しました。サービスへの影響はなく、動作確認も終わっています。皆様に追加で対応いただくことはありません。"}, {"label": "low", "diff": "medium", "subject": "先日のお詫びメールの件、ありがとうございました", "body": "お疲れ様です。先日の納品遅れについて、お客様向けのお詫びメールを一緒に考えていただき、ありがとうございました。お客様からも丁寧な返信をいただき、関係は良好です。取り急ぎお礼まで。"}, {"label": "low", "diff": "low", "subject": "新オフィスの使い方ガイド", "body": "総務部です。新オフィスの使い方ガイドを作成しました。フリーアドレス席の予約方法、集中ブースの利用ルール、複合機の場所、ロッカーの使い方、来客時の受付の流れ、ゴミの分別方法などをまとめています。困ったときに参照できるよう、ブックマークしておいてください。"}, {"label": "low", "diff": "low", "subject": "ご参考：お客様からのお褒めの言葉", "body": "お疲れ様です。先日サポート窓口にご連絡いただいたお客様から、「対応がとても丁寧で助かった」というお褒めの言葉をいただきました。チームの皆様の日頃の対応の成果だと思います。ご参考までに共有します。"}, {"label": "low", "diff": "medium", "subject": "すぐ読めます：3分でわかる新人事制度", "body": "人事部です。来年度から始まる新しい人事制度のポイントを、3分で読めるようにまとめました。評価の仕組みと、キャリア面談の流れが主な変更点です。詳細な説明会は後日あらためてご案内します。"}]};
+const NS = "http://www.w3.org/2000/svg";
+const color = m => `var(--s-${m})`;
+const el = (tag, attrs = {}, parent) => {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (parent) parent.appendChild(n);
+  return n;
+};
+const JP = { high: "高", medium: "中", low: "低" };
+
+function legend(fig, models) {
+  fig.querySelector(".legend").innerHTML = models.map(m => `<span><i style="background:${color(m)}"></i>${m}</span>`).join("");
+}
+
+function tooltip(fig) {
+  const t = document.createElement("div");
+  t.className = "tip";
+  fig.appendChild(t);
+  return {
+    show(html, evt) {
+      t.innerHTML = html;
+      const r = fig.getBoundingClientRect();
+      let x = evt.clientX - r.left + 12, y = evt.clientY - r.top + 12;
+      t.style.opacity = 1;
+      const w = t.offsetWidth;
+      if (x + w > r.width - 8) x = evt.clientX - r.left - w - 12;
+      t.style.left = x + "px"; t.style.top = y + "px";
+    },
+    hide() { t.style.opacity = 0; },
+  };
+}
+
+function drawAccuracy() {
+  const fig = document.getElementById("acc-figure");
+  const svg = document.getElementById("acc-chart");
+  const models = DATA.models;
+  legend(fig, models);
+  const tip = tooltip(fig);
+  const W = svg.clientWidth || 800, rowH = 46, top = 8, left = 108, right = 24;
+  const diffs = [["high", "難易度high"], ["medium", "難易度medium"], ["low", "難易度low"], ["all", "全体"]];
+  const H = top + diffs.length * rowH + 28;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("height", H);
+  svg.innerHTML = "";
+  const x0 = 0.7, x1 = 1.0;
+  const sx = v => left + (Math.max(v, x0) - x0) / (x1 - x0) * (W - left - right);
+  for (const t of [0.7, 0.8, 0.9, 1.0]) {
+    el("line", { x1: sx(t), x2: sx(t), y1: top, y2: top + diffs.length * rowH, stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    const lb = el("text", { x: sx(t), y: top + diffs.length * rowH + 18, "text-anchor": "middle", "font-size": 12, fill: "var(--text-muted)" }, svg);
+    lb.textContent = t.toFixed(1);
+  }
+  diffs.forEach(([key, name], i) => {
+    const cy = top + i * rowH + rowH / 2;
+    const lb = el("text", { x: 0, y: cy + 4, "font-size": 13, fill: "var(--text-secondary)", "font-weight": key === "all" ? 700 : 400 }, svg);
+    lb.textContent = name;
+    el("line", { x1: left, x2: W - right, y1: cy, y2: cy, stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    const pts = models.map(m => [m, key === "all" ? DATA.summary[m].accuracy : DATA.summary[m]["acc_diff_" + key]]);
+    // 同じ値の点が重ならないよう、値ごとに縦へずらす
+    const seen = {};
+    pts.forEach(([m, v]) => {
+      const k = v.toFixed(3); const n = seen[k] = (seen[k] || 0) + 1;
+      const dy = (n - 1) * 9 - (pts.filter(p => p[1].toFixed(3) === k).length - 1) * 4.5;
+      const c = el("circle", { cx: sx(v), cy: cy + dy, r: 6, fill: color(m), stroke: "var(--surface-1)", "stroke-width": 2 }, svg);
+      const hit = el("circle", { cx: sx(v), cy: cy + dy, r: 12, fill: "transparent", style: "cursor:default" }, svg);
+      hit.addEventListener("mousemove", e => tip.show(`<b>${m}</b> ・ ${name}<br>正解率 ${v.toFixed(3)}${v < x0 ? "（0.7未満）" : ""}`, e));
+      hit.addEventListener("mouseleave", () => tip.hide());
+    });
+    // jev を直接ラベル
+    const jv = pts[0][1];
+    const jl = el("text", { x: sx(jv) - 12, y: cy - 10, "text-anchor": "end", "font-size": 11.5, fill: "var(--text-secondary)", class: "halo" }, svg);
+    jl.textContent = "jev " + jv.toFixed(2);
+  });
+}
+
+function drawLatency() {
+  const fig = document.getElementById("lat-figure");
+  const svg = document.getElementById("lat-chart");
+  const models = ["jev", "decisions", "gpt"];
+  legend(fig, models);
+  const tip = tooltip(fig);
+  const W = svg.clientWidth || 800, rowH = 72, top = 14, left = 84, right = 24;
+  const H = top + models.length * rowH + 30;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("height", H);
+  svg.innerHTML = "";
+  const maxV = 1700;
+  const sx = v => left + v / maxV * (W - left - right);
+  for (const t of [0, 250, 500, 750, 1000, 1250, 1500]) {
+    el("line", { x1: sx(t), x2: sx(t), y1: top, y2: top + models.length * rowH, stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    const lb = el("text", { x: sx(t), y: top + models.length * rowH + 18, "text-anchor": "middle", "font-size": 12, fill: "var(--text-muted)" }, svg);
+    lb.textContent = t;
+  }
+  const unit = el("text", { x: W - right, y: top + models.length * rowH + 18, "text-anchor": "end", "font-size": 12, fill: "var(--text-muted)" }, svg);
+  unit.textContent = "ms";
+  models.forEach((m, i) => {
+    const cy = top + i * rowH + rowH / 2;
+    const lb = el("text", { x: 0, y: cy + 4, "font-size": 13, fill: "var(--text-secondary)" }, svg);
+    lb.textContent = m;
+    const vals = DATA.latency[m];
+    vals.forEach((v, j) => {
+      // 決定的なジッター（件番号から計算）で縦に散らす
+      const jitter = (((j * 37) % 23) / 22 - 0.5) * (rowH - 34) + 4;
+      el("circle", { cx: sx(v), cy: cy + jitter, r: 4, fill: color(m), "fill-opacity": 0.75, stroke: "var(--surface-1)", "stroke-width": 1 }, svg);
+      const hit = el("circle", { cx: sx(v), cy: cy + jitter, r: 8, fill: "transparent" }, svg);
+      const mail = DATA.mails[j];
+      hit.addEventListener("mousemove", e => tip.show(`<b>${m}</b> ・ ${v.toFixed(1)} ms<br>#${String(j + 1).padStart(3, "0")} ${mail.subject}<br>正解=${JP[mail.label]} ／ 難易度${mail.diff}`, e));
+      hit.addEventListener("mouseleave", () => tip.hide());
+    });
+    const sorted = [...vals].sort((a, b) => a - b);
+    const med = (sorted[49] + sorted[50]) / 2;
+    el("line", { x1: sx(med), x2: sx(med), y1: cy - rowH / 2 + 6, y2: cy + rowH / 2 - 6, stroke: "var(--text-primary)", "stroke-width": 2 }, svg);
+    const ml = el("text", { x: sx(med) + 6, y: cy - rowH / 2 + 4, "font-size": 11.5, fill: "var(--text-primary)", "font-weight": 600, class: "halo" }, svg);
+    ml.textContent = `中央値 ${med.toFixed(0)}ms`;
+  });
+}
+
+function drawAll() { if (!document.getElementById("tab-report").hidden) { drawAccuracy(); drawLatency(); } }
+
+const MODELS_ALL = ["jev", "decisions", "gpt", "tfidf"];
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const MAILS = DATA.mails.map((m, i) => ({
+  ...m, no: i + 1,
+  pred: Object.fromEntries(MODELS_ALL.map(k => [k, DATA.preds[k][i]])),
+  ms: Object.fromEntries(["jev", "decisions", "gpt"].map(k => [k, DATA.latency[k][i]])),
+}));
+
+function renderData() {
+  const q = document.getElementById("f-q").value.trim().toLowerCase();
+  const fl = document.getElementById("f-label").value;
+  const fd = document.getElementById("f-diff").value;
+  const fe = document.getElementById("f-err").value;
+  const wrong = (m, ks) => ks.some(k => m.pred[k] !== m.label);
+  const list = MAILS.filter(m =>
+    (!fl || m.label === fl) && (!fd || m.diff === fd) &&
+    (!q || (m.subject + m.body).toLowerCase().includes(q)) &&
+    (!fe || (fe === "any" && wrong(m, MODELS_ALL)) || (fe === "api" && wrong(m, ["jev", "decisions", "gpt"])) || (fe === "jev" && wrong(m, ["jev"]))));
+  document.getElementById("f-count").textContent = `表示 ${list.length} / 100件`;
+  const tb = document.getElementById("data-body");
+  if (!list.length) { tb.innerHTML = `<tr><td colspan="11" class="ok">該当するメールはありません</td></tr>`; return; }
+  tb.innerHTML = list.map(m => `
+    <tr>
+      <td>${String(m.no).padStart(3, "0")}</td>
+      <td class="subj"><button class="subj-btn" aria-expanded="false" aria-controls="body-${m.no}">${esc(m.subject)}</button></td>
+      <td>${m.label}</td>
+      <td><span class="badge">${m.diff}</span></td>
+      ${MODELS_ALL.map(k => m.pred[k] === m.label ? `<td class="ok">✓</td>` : `<td class="ng" title="予測: ${m.pred[k]}">${JP[m.pred[k]] || m.pred[k]}</td>`).join("")}
+      ${["jev", "decisions", "gpt"].map(k => `<td class="num">${m.ms[k].toFixed(0)}</td>`).join("")}
+    </tr>
+    <tr class="body-row" id="body-${m.no}" hidden><td colspan="11">${esc(m.body)}</td></tr>`).join("");
+}
+document.getElementById("data-body").addEventListener("click", e => {
+  const b = e.target.closest(".subj-btn"); if (!b) return;
+  const row = document.getElementById(b.getAttribute("aria-controls"));
+  const open = b.getAttribute("aria-expanded") !== "true";
+  b.setAttribute("aria-expanded", open); row.hidden = !open;
+});
+["f-q", "f-label", "f-diff", "f-err"].forEach(id => document.getElementById(id).addEventListener("input", renderData));
+
+function showTab(name) {
+  for (const n of ["report", "data"]) {
+    const on = n === name;
+    document.getElementById("tab-" + n).hidden = !on;
+    const btn = document.getElementById("tabbtn-" + n);
+    btn.setAttribute("aria-selected", on); btn.tabIndex = on ? 0 : -1;
+  }
+  if (name === "report") drawAll(); else renderData();
+  try { localStorage.setItem("jev-report-tab", name); } catch (_) {}
+}
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => showTab(btn.id.replace("tabbtn-", "")));
+  btn.addEventListener("keydown", e => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      const next = btn.id === "tabbtn-report" ? "data" : "report";
+      showTab(next); document.getElementById("tabbtn-" + next).focus();
+    }
+  });
+});
+let initialTab = location.hash === "#data" ? "data" : "report";
+if (!location.hash) { try { initialTab = localStorage.getItem("jev-report-tab") || "report"; } catch (_) {} }
+showTab(initialTab);
+let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(drawAll, 120); });
+</script>
+</body>
+</html>
